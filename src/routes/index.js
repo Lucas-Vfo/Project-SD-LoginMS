@@ -1,42 +1,60 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const prisma = require('@prisma/client');
+const { isValidEmail } = require('../utils/isValidEmail');
+const { messages } = require('../utils/messages.js');
 
+const prismaDB = new prisma.PrismaClient();
 const router = express.Router();
 
-// Ruta POST para el inicio de sesión de los usuarios.
-router.post('/login', (req, res) => {
-  // Extraer el nombre de usuario y la contraseña del cuerpo de la solicitud.
-  const { username, password } = req.body;
+// Ruta para iniciar sesión
+router.post('/auth/login', async (req, res) => {
+  try {
+    // Obtener email y password del cuerpo de la solicitud
+    const { email, password } = req.body;
 
-  // Consulta SQL para buscar al usuario en la base de datos por su nombre de usuario.
-  const sql = 'SELECT * FROM users WHERE username = ?';
-  db.get(sql, [username], (err, user) => {
-    if (err) {
-      // Si hay un error al buscar al usuario, se devuelve un error de servidor.
-      console.error(err);
-      return res.status(500).send('Error en el servidor');
+    if (!email || !password) {
+      res.status(400).json({ message: messages.error.needProps });
+      return;
     }
+
+    // Verificar si el email existe en la base de datos
+    const user = await prismaDB.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
 
     if (!user) {
-      // Si no se encuentra al usuario, se devuelve un error de autenticación.
-      return res.status(401).send('Usuario no encontrado');
+      res.status(404).json({ message: messages.error.userNotFound });
+      return;
     }
 
-    // Comparar la contraseña proporcionada con la almacenada en la base de datos.
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (result) {
-        // Si las contraseñas coinciden, se genera un token JWT.
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        // Se devuelve el token al cliente.
-        res.json({ token });
-      } else {
-        // Si las contraseñas no coinciden, se devuelve un error de autenticación.
-        res.status(401).send('Contraseña incorrecta');
-      }
+    // Verificar si la contraseña es correcta
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      res.status(401).json({ message: messages.error.wrongPassword });
+      return;
+    }
+
+    // Crear un token JWT con una duración de 24 horas
+    const token = jwt.sign({ userId: user.id }, 'secreto', { expiresIn: '24h' });
+
+    res.cookie('auth_cookie', token, {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 86400,
+      path: '/',
     });
-  });
+
+    res.status(200).json({ token, messages: messages.success.userLoggedIn});
+  } catch (err) {
+    // Manejo de errores generales
+    console.error(err);
+    res.status(500).json({ message: messages.error.default, error: err });
+  }
 });
 
 module.exports = router;
