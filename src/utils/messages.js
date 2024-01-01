@@ -4,9 +4,11 @@ const messages = {
         userNotFound: "Usuario no encontrado",
         wrongPassword: "Contraseña incorrecta",
         default: 'Ocurrió un error',
+        logoutFailed: 'Error al cerrar sesión',
     },
     success: {
         userLoggedIn: "Usuario logeado correctamente",
+        userLoggedOut: 'Sesión cerrada exitosamente',
     }
 }
 

@@ -15,8 +15,7 @@ router.post('/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ message: messages.error.needProps });
-      return;
+      return res.status(400).json({ message: messages.error.needProps });
     }
 
     // Verificar si el email existe en la base de datos
@@ -27,16 +26,14 @@ router.post('/auth/login', async (req, res) => {
     });
 
     if (!user) {
-      res.status(404).json({ message: messages.error.userNotFound });
-      return;
+      return res.status(404).json({ message: messages.error.userNotFound });
     }
 
     // Verificar si la contraseña es correcta
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      res.status(401).json({ message: messages.error.wrongPassword });
-      return;
+      return res.status(401).json({ message: messages.error.wrongPassword });
     }
 
     // Crear un token JWT con una duración de 24 horas
@@ -49,11 +46,11 @@ router.post('/auth/login', async (req, res) => {
       path: '/',
     });
 
-    res.status(200).json({ token, messages: messages.success.userLoggedIn});
+    return res.status(200).json({ token, messages: messages.success.userLoggedIn});
   } catch (err) {
     // Manejo de errores generales
     console.error(err);
-    res.status(500).json({ message: messages.error.default, error: err });
+    return res.status(500).json({ message: messages.error.default, error: err });
   }
 });
 
